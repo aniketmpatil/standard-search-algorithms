@@ -4,6 +4,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import networkx as nx
+import math
 
 
 # Class for PRM
@@ -29,7 +30,24 @@ class PRM:
             True if there are obstacles between two points
         '''
         ### YOUR CODE HERE ###
-        return True
+        dx = abs(p1[1] - p2[1])
+        dy = abs(p1[0] - p2[0])
+        N = max(dx, dy)
+
+        divN = 0.0 if N==0 else 1.0/N
+        xstep = dx * divN
+        ystep = dy * divN
+
+        ypt = np.arange(p1[0], p2[0], ystep)
+        xpt = np.arange(p1[1], p2[1], xstep)
+
+        ypt = list(np.round(ypt))
+        xpt = list(np.round(xpt))
+
+        for i in range(len(xpt)):
+            if(self.map_array[xpt[i]][ypt[i]] == 0):
+                return True
+        return False
 
 
     def dis(self, point1, point2):
@@ -42,7 +60,8 @@ class PRM:
             euclidean distance between two points
         '''
         ### YOUR CODE HERE ###
-        return 0
+        dist = math.sqrt(math.pow((point1[0] - point2[0]), 2) + math.pow((point1[1] - point2[1]), 2))
+        return dist
 
 
     def uniform_sample(self, n_pts):
@@ -72,9 +91,13 @@ class PRM:
         '''
         # Initialize graph
         self.graph.clear()
-
+        old_point = (0, 0)
         ### YOUR CODE HERE ###
-        self.samples.append((0, 0))
+        for i in range(n_pts):
+            new_point = (np.random.randint(0, self.size_row), np.random.randint(0, self.size_col))
+            if not self.check_collision(new_point, old_point):
+                self.samples.append(new_point)
+                old_point = self.samples[-1]
 
 
     def gaussian_sample(self, n_pts):
