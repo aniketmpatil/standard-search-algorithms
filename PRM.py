@@ -5,7 +5,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import networkx as nx
 import math
+from scipy import spatial
 
+K_NEAREST_DISTANCE = 10
 
 # Class for PRM
 class PRM:
@@ -91,13 +93,12 @@ class PRM:
         '''
         # Initialize graph
         self.graph.clear()
-        old_point = (0, 0)
+        
         ### YOUR CODE HERE ###
         for i in range(n_pts):
             new_point = (np.random.randint(0, self.size_row), np.random.randint(0, self.size_col))
-            if not self.check_collision(new_point, old_point):
+            if(self.map_array[new_point(0)][new_point(1)] == 1):
                 self.samples.append(new_point)
-                old_point = self.samples[-1]
 
 
     def gaussian_sample(self, n_pts):
@@ -200,6 +201,12 @@ class PRM:
         #          (p_id1, p_id2, weight_12) ...]
         pairs = []
 
+        for i in range(len(self.samples)-1):
+            p1 = self.samples.pop(0)
+            for p2 in self.samples:
+                wt = self.dis(p1, p2)
+                if (wt < K_NEAREST_DISTANCE):
+                    pairs.append((p1, p2, wt))
         # Use sampled points and pairs of points to build a graph.
         # To add nodes to the graph, use
         # self.graph.add_nodes_from([p_id0, p_id1, p_id2 ...])
@@ -211,7 +218,7 @@ class PRM:
         # current point in self.samples
         # For example, for self.samples = [(1, 2), (3, 4), (5, 6)],
         # p_id for (1, 2) is 0 and p_id for (3, 4) is 1.
-        self.graph.add_nodes_from([])
+        self.graph.add_nodes_from(self.samples)
         self.graph.add_weighted_edges_from(pairs)
 
         # Print constructed graph information
