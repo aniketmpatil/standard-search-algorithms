@@ -7,7 +7,11 @@ import networkx as nx
 import math
 from scipy import spatial
 
-K_NEAREST_DISTANCE = 10
+K_NEAREST_DISTANCE = 15
+# COV_VALUE = [[250, 0],
+#             [0, 100]]
+COV_VALUE = [[500, 100],
+            [100, 500]]
 
 # Class for PRM
 class PRM:
@@ -96,9 +100,9 @@ class PRM:
         
         ### YOUR CODE HERE ###
         for i in range(n_pts):
-            new_point = (np.random.randint(0, self.size_row), np.random.randint(0, self.size_col))
-            if(self.map_array[new_point(0)][new_point(1)] == 1):
-                self.samples.append(new_point)
+            new_point = [np.random.randint(0, self.size_row), np.random.randint(0, self.size_col)]
+            if(self.map_array[new_point[0]][new_point[1]] == 1):
+                self.samples.append(tuple(new_point))
 
 
     def gaussian_sample(self, n_pts):
@@ -114,7 +118,19 @@ class PRM:
         self.graph.clear()
 
         ### YOUR CODE HERE ###
-        self.samples.append((0, 0))
+        for i in range(n_pts):
+            q1 = [np.random.randint(0, self.size_row), np.random.randint(0, self.size_col)]
+            q2 = np.random.multivariate_normal(q1, COV_VALUE, size=1)[0] 
+            q2 = [int(q) for q in q2]
+            print(tuple(q2))
+            if((q2[0] > self.size_row-1) or (q2[1] > self.size_col-1)):
+                continue
+            if(self.map_array[q1[0]][q1[1]] == self.map_array[q2[0]][q2[1]]):
+                continue
+            if(self.map_array[q1[0]][q1[1]] == 1):
+                self.samples.append(tuple(q1))
+            else:
+                self.samples.append(tuple(q2))
 
 
     def bridge_sample(self, n_pts):
@@ -130,7 +146,21 @@ class PRM:
         self.graph.clear()
 
         ### YOUR CODE HERE ###
-        self.samples.append((0, 0))
+        for i in range(n_pts):
+            q1 = [np.random.randint(0, self.size_row), np.random.randint(0, self.size_col)]
+            if(self.map_array[q1[0]][q1[1]] == 1):
+                continue
+            q2 = np.random.multivariate_normal(q1, COV_VALUE, size=1)[0] 
+            q2 = [int(q) for q in q2]
+            if((q2[0] > self.size_row-1) or (q2[1] > self.size_col-1)):
+                continue
+            if(self.map_array[q2[0]][q2[1]] == 0):
+                print("Hello1")
+                mid = [round((a+b)/2) for (a, b) in zip(q1, q2)]
+                print(tuple(mid))
+                if(self.map_array[mid[0]][mid[1]] == 1):
+                    print("Hello2")
+                    self.samples.append(tuple(mid))
 
 
     def draw_map(self):
@@ -200,13 +230,25 @@ class PRM:
         # pairs = [(p_id0, p_id1, weight_01), (p_id0, p_id2, weight_02), 
         #          (p_id1, p_id2, weight_12) ...]
         pairs = []
+        
+        print(len(self.samples))
+        kdtree = spatial.KDTree(self.samples)
+        p_ids = kdtree.query_pairs(K_NEAREST_DISTANCE)
+        
+        for pid in p_ids:
+            p1 = pid[0]
+            p2 = pid[1]
+            wt = self.dis(self.samples[p1], self.samples[p2])
+            pairs.append((p1, p2, wt))
 
-        for i in range(len(self.samples)-1):
-            p1 = self.samples.pop(0)
-            for p2 in self.samples:
-                wt = self.dis(p1, p2)
-                if (wt < K_NEAREST_DISTANCE):
-                    pairs.append((p1, p2, wt))
+        # for i in range(len(self.samples)-1):
+        #     p1 = self.samples.pop(0)
+        #     for p2 in self.samples:
+        #         wt = self.dis(p1, p2)
+        #         if (wt < K_NEAREST_DISTANCE):
+        #             pairs.append((p1, p2, wt))
+
+
         # Use sampled points and pairs of points to build a graph.
         # To add nodes to the graph, use
         # self.graph.add_nodes_from([p_id0, p_id1, p_id2 ...])
@@ -218,7 +260,7 @@ class PRM:
         # current point in self.samples
         # For example, for self.samples = [(1, 2), (3, 4), (5, 6)],
         # p_id for (1, 2) is 0 and p_id for (3, 4) is 1.
-        self.graph.add_nodes_from(self.samples)
+        self.graph.add_nodes_from(range(len(self.samples)))
         self.graph.add_weighted_edges_from(pairs)
 
         # Print constructed graph information
