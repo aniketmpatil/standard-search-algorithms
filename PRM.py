@@ -8,10 +8,9 @@ import math
 from scipy import spatial
 
 K_NEAREST_DISTANCE = 15
-# COV_VALUE = [[250, 0],
-#             [0, 100]]
-COV_VALUE = [[500, 100],
-            [100, 500]]
+UNIFORM_STEP = 10
+COV_VALUE = [[80, 0],
+            [0, 80]]
 
 # Class for PRM
 class PRM:
@@ -83,7 +82,10 @@ class PRM:
         self.graph.clear()
 
         ### YOUR CODE HERE ###
-        self.samples.append((0, 0))
+        for row in range(0, self.size_row, UNIFORM_STEP):
+            for col in range(0, self.size_col, UNIFORM_STEP):
+                if(self.map_array[row][col] == 1):
+                    self.samples.append((row, col))
 
     
     def random_sample(self, n_pts):
@@ -155,11 +157,8 @@ class PRM:
             if((q2[0] > self.size_row-1) or (q2[1] > self.size_col-1)):
                 continue
             if(self.map_array[q2[0]][q2[1]] == 0):
-                print("Hello1")
                 mid = [round((a+b)/2) for (a, b) in zip(q1, q2)]
-                print(tuple(mid))
                 if(self.map_array[mid[0]][mid[1]] == 1):
-                    print("Hello2")
                     self.samples.append(tuple(mid))
 
 
@@ -231,7 +230,6 @@ class PRM:
         #          (p_id1, p_id2, weight_12) ...]
         pairs = []
         
-        print(len(self.samples))
         kdtree = spatial.KDTree(self.samples)
         p_ids = kdtree.query_pairs(K_NEAREST_DISTANCE)
         
@@ -296,6 +294,9 @@ class PRM:
         #                (start_id, p_id2, weight_s2) ...]
         start_pairs = []
         goal_pairs = []
+
+        # for i in range(len(self.samples)):
+        #     p1 = 
 
         # Add the edge to graph
         self.graph.add_weighted_edges_from(start_pairs)
