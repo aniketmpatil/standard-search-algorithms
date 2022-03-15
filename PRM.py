@@ -7,10 +7,14 @@ import networkx as nx
 import math
 from scipy import spatial
 
-K_NEAREST_DISTANCE = 15
+K_NEAREST_DISTANCE = 30
+SAMPLING_RADIUS = 20
 UNIFORM_STEP = 10
-COV_VALUE = [[80, 0],
-            [0, 80]]
+K_NEIGHBORS = 30
+GAUSS_COV_VALUE = [[150, 0],
+            [0, 150]]
+BRIDGE_COV_VALUE = [[300, 0],
+            [0, 300]]
 
 # Class for PRM
 class PRM:
@@ -35,23 +39,19 @@ class PRM:
             True if there are obstacles between two points
         '''
         ### YOUR CODE HERE ###
-        dx = abs(p1[1] - p2[1])
-        dy = abs(p1[0] - p2[0])
-        N = max(dx, dy)
-
-        divN = 0.0 if N==0 else 1.0/N
+        dx = p2[0] - p1[0]
+        dy = p2[1] - p1[1]
+        divN = 1/1000
         xstep = dx * divN
         ystep = dy * divN
 
-        ypt = np.arange(p1[0], p2[0], ystep)
-        xpt = np.arange(p1[1], p2[1], xstep)
-
-        ypt = list(np.round(ypt))
-        xpt = list(np.round(xpt))
-
-        for i in range(len(xpt)):
-            if(self.map_array[xpt[i]][ypt[i]] == 0):
+        xpt = p1[0]
+        ypt = p1[1]
+        for i in range(1000):
+            if(self.map_array[int(xpt)][int(ypt)] == 0):
                 return True
+            xpt = xpt + xstep
+            ypt = ypt + ystep
         return False
 
 
@@ -122,9 +122,8 @@ class PRM:
         ### YOUR CODE HERE ###
         for i in range(n_pts):
             q1 = [np.random.randint(0, self.size_row), np.random.randint(0, self.size_col)]
-            q2 = np.random.multivariate_normal(q1, COV_VALUE, size=1)[0] 
+            q2 = np.random.multivariate_normal(q1, GAUSS_COV_VALUE, size=1)[0] 
             q2 = [int(q) for q in q2]
-            print(tuple(q2))
             if((q2[0] > self.size_row-1) or (q2[1] > self.size_col-1)):
                 continue
             if(self.map_array[q1[0]][q1[1]] == self.map_array[q2[0]][q2[1]]):
@@ -152,7 +151,7 @@ class PRM:
             q1 = [np.random.randint(0, self.size_row), np.random.randint(0, self.size_col)]
             if(self.map_array[q1[0]][q1[1]] == 1):
                 continue
-            q2 = np.random.multivariate_normal(q1, COV_VALUE, size=1)[0] 
+            q2 = np.random.multivariate_normal(q1, BRIDGE_COV_VALUE, size=1)[0] 
             q2 = [int(q) for q in q2]
             if((q2[0] > self.size_row-1) or (q2[1] > self.size_col-1)):
                 continue
@@ -231,12 +230,14 @@ class PRM:
         pairs = []
         
         kdtree = spatial.KDTree(self.samples)
-        p_ids = kdtree.query_pairs(K_NEAREST_DISTANCE)
+        p_ids = kdtree.query_pairs(SAMPLING_RADIUS)
         
         for pid in p_ids:
             p1 = pid[0]
             p2 = pid[1]
             wt = self.dis(self.samples[p1], self.samples[p2])
+            if self.check_collision(list(self.samples[p1]), list(self.samples[p2])):
+                continue
             pairs.append((p1, p2, wt))
 
         # for i in range(len(self.samples)-1):
@@ -295,8 +296,32 @@ class PRM:
         start_pairs = []
         goal_pairs = []
 
-        # for i in range(len(self.samples)):
-        #     p1 = 
+        kdtree = spatial.KDTree(self.samples)
+        # p_ids = kdtree.query_pairs(K_NEAREST_DISTANCE)
+        _, p_ids = list(kdtree.query([start, goal], K_NEIGHBORS))
+        print(len(p_ids[0]))
+
+        for i in range(K_NEIGHBORS):
+            p_start = p_ids[0][i]
+            p_goal = p_ids[1][i]
+            wt = self.dis(self.samples[p_start], start)
+            start_pairs.append(('start', p_start, wt))
+            wt = self.dis(self.samples[p_goal], goal)
+            goal_pairs.append(('goal', p_goal, wt))
+        # for pid in p_ids:
+        #     p1 = pid[0]
+        #     p2 = pid[1]
+        #     pt1 = self.samples[p1]
+        #     pt2 = self.samples[p2]
+        #     wt = self.dis(pt1, pt2)
+        #     if (pt1 == start):
+        #         start_pairs.append(('start', p2, wt))
+        #     if (pt2 == start):
+        #         start_pairs.append((p1, 'start', wt))
+        #     if (pt1 == goal):
+        #         goal_pairs.append(('goal', p2, wt))
+        #     if (pt2 == goal):
+        #         goal_pairs.append((p1, 'goal', wt))
 
         # Add the edge to graph
         self.graph.add_weighted_edges_from(start_pairs)
