@@ -3,7 +3,8 @@
 
 import matplotlib.pyplot as plt
 import numpy as np
-
+import math
+from scipy import spatial
 
 # Class for each tree node
 class Node:
@@ -45,8 +46,8 @@ class RRT:
         return:
             euclidean distance between two nodes
         '''
-        ### YOUR CODE HERE ###
-        return 0
+        dist = math.sqrt(math.pow((node1.row - node2.row), 2) + math.pow((node1.col - node2.col), 2))
+        return dist
 
     
     def check_collision(self, node1, node2):
@@ -59,7 +60,21 @@ class RRT:
             True if the new node is valid to be connected
         '''
         ### YOUR CODE HERE ###
-        return True
+        COLLISION_STEPS = 50
+        dx = node2.row - node1.row
+        dy = node2.col - node1.col
+        divN = 1/COLLISION_STEPS
+        xstep = dx * divN
+        ystep = dy * divN
+
+        xpt = node1.row
+        ypt = node1.col
+        for i in range(COLLISION_STEPS):
+            if(self.map_array[int(xpt)][int(ypt)] == 0):
+                return True
+            xpt = xpt + xstep
+            ypt = ypt + ystep
+        return False
 
 
     def get_new_point(self, goal_bias):
@@ -71,7 +86,10 @@ class RRT:
             point - the new point
         '''
         ### YOUR CODE HERE ###
-        return self.goal
+        random_node = Node(np.random.randint(0, self.size_row), np.random.randint(0, self.size_col))
+        p_goal = 0.5 + goal_bias
+        point = np.random.choice([self.goal, random_node], p=[p_goal, 1 - p_goal])
+        return random_node
 
     
     def get_nearest_node(self, point):
@@ -83,7 +101,16 @@ class RRT:
             the nearest node
         '''
         ### YOUR CODE HERE ###
-        return self.vertices[0]
+        min_dist = math.inf
+        for vertex in self.vertices:
+            if(self.dis(vertex, point) < min_dist):
+                min_dist = self.dis(vertex, point)
+                nearest_node = vertex
+        return nearest_node
+
+    def extend(self, node1, node2):
+        EXTEND_DIST = 5
+        m = (node2.col - node1.col)/(node2.row - node1.row)
 
 
     def get_neighbors(self, new_node, neighbor_size):
@@ -96,7 +123,11 @@ class RRT:
             neighbors - a list of neighbors that are within the neighbor distance 
         '''
         ### YOUR CODE HERE ###
-        return [self.vertices[0]]
+        neighbors = []
+        for vertex in self.vertices:
+            if(self.dis(vertex, new_node) < neighbor_size):
+                neighbors.append(vertex)
+        return neighbors
 
 
     def rewire(self, new_node, neighbors):
@@ -109,6 +140,12 @@ class RRT:
         Rewire all the other neighbor nodes.
         '''
         ### YOUR CODE HERE ###
+        for neighbor in neighbors:
+            new_cost = neighbor.cost + self.dis(neighbor, new_node)
+            if(new_node.cost > new_cost):
+                new_node.parent = neighbor
+                new_node.cost = new_cost
+            
 
     
     def draw_map(self):
@@ -158,6 +195,23 @@ class RRT:
         # get its nearest node, 
         # extend the node and check collision to decide whether to add or drop,
         # if added, check if reach the neighbor region of the goal.
+        GOAL_DIST = 10
+        for n in range(n_pts):
+            new_node = self.get_new_point(0.05)
+            near_vertex = self.get_nearest_node(new_node)
+            if(self.check_collision(near_vertex, new_node)):
+                continue
+            self.vertices.append(new_node)
+            new_node.parent = near_vertex
+            new_node.cost = self.dis(new_node, near_vertex)
+            print(self.dis(new_node, self.goal))
+            if((self.dis(new_node, self.goal) <= GOAL_DIST) and \
+                self.check_collision(new_node, self.goal)):
+                print("True")
+                self.found = True
+                self.goal.cost = self.dis(new_node, self.goal)
+                self.vertices.append(self.goal)
+                break
 
         # Output
         if self.found:
@@ -192,6 +246,23 @@ class RRT:
         # extend the node and check collision to decide whether to add or drop,
         # if added, rewire the node and its neighbors,
         # and check if reach the neighbor region of the goal if the path is not found.
+        GOAL_DIST = 10
+        for n in range(n_pts):
+            new_node = self.get_new_point(0.05)
+            near_vertex = self.get_nearest_node(new_node)
+            if(self.check_collision(near_vertex, new_node)):
+                continue
+            self.vertices.append(new_node)
+            new_node.parent = near_vertex
+            new_node.cost = self.dis(new_node, near_vertex)
+            print(self.dis(new_node, self.goal))
+            if((self.dis(new_node, self.goal) <= GOAL_DIST) and \
+                self.check_collision(new_node, self.goal)):
+                print("True")
+                self.found = True
+                self.goal.cost = self.dis(new_node, self.goal)
+                self.vertices.append(self.goal)
+                break
 
         # Output
         if self.found:

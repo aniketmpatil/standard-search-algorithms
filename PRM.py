@@ -39,15 +39,16 @@ class PRM:
             True if there are obstacles between two points
         '''
         ### YOUR CODE HERE ###
+        COLLISION_STEPS = 50
         dx = p2[0] - p1[0]
         dy = p2[1] - p1[1]
-        divN = 1/1000
+        divN = 1/COLLISION_STEPS
         xstep = dx * divN
         ystep = dy * divN
 
         xpt = p1[0]
         ypt = p1[1]
-        for i in range(1000):
+        for i in range(COLLISION_STEPS):
             if(self.map_array[int(xpt)][int(ypt)] == 0):
                 return True
             xpt = xpt + xstep
