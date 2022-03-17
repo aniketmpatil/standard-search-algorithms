@@ -50,5 +50,5 @@ if __name__ == "__main__":
     # PRM_planner.search(start, goal)
 
     # Search with RRT and RRT*
-    RRT_planner.RRT(n_pts=1000)
-    # RRT_planner.RRT_star(n_pts=2000)
+    # RRT_planner.RRT(n_pts=1000)
+    RRT_planner.RRT_star(n_pts=2000)

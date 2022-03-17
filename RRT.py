@@ -11,6 +11,8 @@ GOAL_BIAS = 0.05
 GOAL_DIST = 15
 COLLISION_STEPS = 50
 
+RRTS_NEIGHBORS = 20
+
 # Class for each tree node
 class Node:
     def __init__(self, row, col):
@@ -32,6 +34,7 @@ class RRT:
         self.goal = Node(goal[0], goal[1])    # goal node
         self.vertices = []                    # list of nodes
         self.found = False                    # found flag
+        self.goal.cost = math.inf
         
 
     def init_map(self):
@@ -163,10 +166,10 @@ class RRT:
         '''
         ### YOUR CODE HERE ###
         for neighbor in neighbors:
-            new_cost = neighbor.cost + self.dis(neighbor, new_node)
-            if(new_node.cost > new_cost):
-                new_node.parent = neighbor
-                new_node.cost = new_cost
+            new_cost = new_node.cost + self.dis(neighbor, new_node)
+            if(new_cost < neighbor.cost and self.check_collision(new_node, neighbor)):
+                neighbor.cost = new_cost
+                neighbor.parent = new_node
 
     
     def draw_map(self):
@@ -266,23 +269,43 @@ class RRT:
         # extend the node and check collision to decide whether to add or drop,
         # if added, rewire the node and its neighbors,
         # and check if reach the neighbor region of the goal if the path is not found.
-        GOAL_DIST = 10
+
         for n in range(n_pts):
-            new_node = self.get_new_point(0.05)
-            near_vertex = self.get_nearest_node(new_node)
+            new_point = self.get_new_point(GOAL_BIAS)
+            near_vertex = self.get_nearest_node(new_point)
+            new_node = self.extend(near_vertex, new_point)
+            if(new_node.row == self.goal.row and new_node.col == self.goal.col): continue
             if(self.check_collision(near_vertex, new_node)):
-                continue
-            self.vertices.append(new_node)
-            new_node.parent = near_vertex
-            new_node.cost = self.dis(new_node, near_vertex)
-            print(self.dis(new_node, self.goal))
-            if((self.dis(new_node, self.goal) <= GOAL_DIST) and \
-                self.check_collision(new_node, self.goal)):
-                print("True")
-                self.found = True
-                self.goal.cost = self.dis(new_node, self.goal)
-                self.vertices.append(self.goal)
-                break
+                neighbors = self.get_neighbors(new_node, RRTS_NEIGHBORS)
+                min_node = near_vertex
+                min_cost = near_vertex.cost + self.dis(near_vertex, new_node)
+                for neighbor in neighbors:
+                    if(self.check_collision(neighbor, new_node) and \
+                        (neighbor.cost + self.dis(neighbor, new_node)) < min_cost):
+                        min_node = neighbor
+                        min_cost = neighbor.cost + self.dis(neighbor, new_node)
+                new_node.parent = min_node
+                new_node.cost = min_cost
+                self.vertices.append(new_node)
+                self.rewire(new_node, neighbors)
+
+                # Check for goal_node
+                # if((self.dis(new_node, self.goal) <= GOAL_DIST) and \
+                #     self.check_collision(new_node, self.goal)):
+                #     self.found = True
+                #     self.goal.parent = new_node
+                #     self.goal.cost = self.dis(new_node, self.goal)
+                #     self.vertices.append(self.goal)
+                #     break
+                
+            goal_neighbors = self.get_neighbors(self.goal, GOAL_DIST)
+            for neighbor in goal_neighbors:
+                if(self.check_collision(neighbor, self.goal) and \
+                    (neighbor.cost + self.dis(neighbor, self.goal)) < self.goal.cost):
+                    self.goal.parent = neighbor
+                    self.goal.cost = neighbor.cost + self.dis(neighbor, self.goal)
+                    self.found = True
+        self.vertices.append(self.goal)
 
         # Output
         if self.found:
