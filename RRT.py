@@ -6,6 +6,11 @@ import numpy as np
 import math
 from scipy import spatial
 
+EXTEND_DIST = 10
+GOAL_BIAS = 0.05
+GOAL_DIST = 15
+COLLISION_STEPS = 50
+
 # Class for each tree node
 class Node:
     def __init__(self, row, col):
@@ -60,7 +65,6 @@ class RRT:
             True if the new node is valid to be connected
         '''
         ### YOUR CODE HERE ###
-        COLLISION_STEPS = 50
         dx = node2.row - node1.row
         dy = node2.col - node1.col
         divN = 1/COLLISION_STEPS
@@ -71,10 +75,10 @@ class RRT:
         ypt = node1.col
         for i in range(COLLISION_STEPS):
             if(self.map_array[int(xpt)][int(ypt)] == 0):
-                return True
+                return False
             xpt = xpt + xstep
             ypt = ypt + ystep
-        return False
+        return True
 
 
     def get_new_point(self, goal_bias):
@@ -87,9 +91,8 @@ class RRT:
         '''
         ### YOUR CODE HERE ###
         random_node = Node(np.random.randint(0, self.size_row), np.random.randint(0, self.size_col))
-        p_goal = 0.5 + goal_bias
-        point = np.random.choice([self.goal, random_node], p=[p_goal, 1 - p_goal])
-        return random_node
+        point = np.random.choice([self.goal, random_node], p=[goal_bias, 1 - goal_bias])
+        return point
 
     
     def get_nearest_node(self, point):
@@ -108,9 +111,28 @@ class RRT:
                 nearest_node = vertex
         return nearest_node
 
+
     def extend(self, node1, node2):
-        EXTEND_DIST = 5
-        m = (node2.col - node1.col)/(node2.row - node1.row)
+        if(self.dis(node1, node2) <= EXTEND_DIST):
+            return node2
+        else:
+            dx = node2.row - node1.row
+            dy = node2.col - node1.col
+            mod = self.dis(node1, node2)
+            stepx = dx * EXTEND_DIST / mod
+            stepy = dy * EXTEND_DIST / mod
+            x = node1.row + stepx
+            y = node1.col + stepy
+
+            if(x < 0): x = 0
+            elif(x > self.size_row): x = self.size_row - 1
+            if(y < 0): y = 0
+            elif(y > self.size_col): y = self.size_col - 1
+
+            new_node = Node(x, y)
+            new_node.parent = node1
+            new_node.cost = node1.cost + self.dis(new_node, node1)
+            return new_node
 
 
     def get_neighbors(self, new_node, neighbor_size):
@@ -145,7 +167,6 @@ class RRT:
             if(new_node.cost > new_cost):
                 new_node.parent = neighbor
                 new_node.cost = new_cost
-            
 
     
     def draw_map(self):
@@ -195,21 +216,20 @@ class RRT:
         # get its nearest node, 
         # extend the node and check collision to decide whether to add or drop,
         # if added, check if reach the neighbor region of the goal.
-        GOAL_DIST = 10
+        
         for n in range(n_pts):
-            new_node = self.get_new_point(0.05)
-            near_vertex = self.get_nearest_node(new_node)
-            if(self.check_collision(near_vertex, new_node)):
-                continue
-            self.vertices.append(new_node)
-            new_node.parent = near_vertex
-            new_node.cost = self.dis(new_node, near_vertex)
-            print(self.dis(new_node, self.goal))
-            if((self.dis(new_node, self.goal) <= GOAL_DIST) and \
-                self.check_collision(new_node, self.goal)):
-                print("True")
+            new_point = self.get_new_point(GOAL_BIAS)
+            near_vertex = self.get_nearest_node(new_point)
+            add_node = self.extend(near_vertex, new_point)
+            if(self.check_collision(near_vertex, add_node)):
+                add_node.parent = near_vertex
+                add_node.cost = near_vertex.cost + self.dis(add_node, near_vertex)
+                self.vertices.append(add_node)
+            if((self.dis(add_node, self.goal) <= GOAL_DIST) and \
+                self.check_collision(add_node, self.goal)):
                 self.found = True
-                self.goal.cost = self.dis(new_node, self.goal)
+                self.goal.parent = add_node
+                self.goal.cost = add_node.cost + self.dis(add_node, self.goal)
                 self.vertices.append(self.goal)
                 break
 
