@@ -7,14 +7,14 @@ import networkx as nx
 import math
 from scipy import spatial
 
-K_NEAREST_DISTANCE = 30
-SAMPLING_RADIUS = 20
+COLLISION_STEPS = 50
+SAMPLING_RADIUS = 15
 UNIFORM_STEP = 10
 K_NEIGHBORS = 30
-GAUSS_COV_VALUE = [[150, 0],
-            [0, 150]]
-BRIDGE_COV_VALUE = [[300, 0],
-            [0, 300]]
+GAUSS_COV_VALUE = [[250, 0],
+            [0, 250]]
+BRIDGE_COV_VALUE = [[400, 0],
+            [0, 400]]
 
 # Class for PRM
 class PRM:
@@ -39,7 +39,6 @@ class PRM:
             True if there are obstacles between two points
         '''
         ### YOUR CODE HERE ###
-        COLLISION_STEPS = 50
         dx = p2[0] - p1[0]
         dy = p2[1] - p1[1]
         divN = 1/COLLISION_STEPS
@@ -241,13 +240,6 @@ class PRM:
                 continue
             pairs.append((p1, p2, wt))
 
-        # for i in range(len(self.samples)-1):
-        #     p1 = self.samples.pop(0)
-        #     for p2 in self.samples:
-        #         wt = self.dis(p1, p2)
-        #         if (wt < K_NEAREST_DISTANCE):
-        #             pairs.append((p1, p2, wt))
-
 
         # Use sampled points and pairs of points to build a graph.
         # To add nodes to the graph, use
@@ -298,7 +290,6 @@ class PRM:
         goal_pairs = []
 
         kdtree = spatial.KDTree(self.samples)
-        # p_ids = kdtree.query_pairs(K_NEAREST_DISTANCE)
         _, p_ids = list(kdtree.query([start, goal], K_NEIGHBORS))
         print(len(p_ids[0]))
 
@@ -309,20 +300,6 @@ class PRM:
             start_pairs.append(('start', p_start, wt))
             wt = self.dis(self.samples[p_goal], goal)
             goal_pairs.append(('goal', p_goal, wt))
-        # for pid in p_ids:
-        #     p1 = pid[0]
-        #     p2 = pid[1]
-        #     pt1 = self.samples[p1]
-        #     pt2 = self.samples[p2]
-        #     wt = self.dis(pt1, pt2)
-        #     if (pt1 == start):
-        #         start_pairs.append(('start', p2, wt))
-        #     if (pt2 == start):
-        #         start_pairs.append((p1, 'start', wt))
-        #     if (pt1 == goal):
-        #         goal_pairs.append(('goal', p2, wt))
-        #     if (pt2 == goal):
-        #         goal_pairs.append((p1, 'goal', wt))
 
         # Add the edge to graph
         self.graph.add_weighted_edges_from(start_pairs)
