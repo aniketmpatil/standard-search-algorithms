@@ -11,10 +11,10 @@ COLLISION_STEPS = 50
 SAMPLING_RADIUS = 15
 UNIFORM_STEP = 10
 K_NEIGHBORS = 30
-GAUSS_COV_VALUE = [[250, 0],
-            [0, 250]]
-BRIDGE_COV_VALUE = [[400, 0],
-            [0, 400]]
+GAUSS_COV_VALUE = [[350, 0],
+            [0, 350]]
+BRIDGE_COV_VALUE = [[650, 0],
+            [0, 650]]
 
 # Class for PRM
 class PRM:
@@ -212,13 +212,18 @@ class PRM:
 
         # Sample methods
         if sampling_method == "uniform":
+            print(" ------- Uniform Sampling ------- ")
             self.uniform_sample(n_pts)
         elif sampling_method == "random":
+            print(" ------- Random Sampling ------- ")
             self.random_sample(n_pts)
         elif sampling_method == "gaussian":
+            print(" ------- Gaussian Sampling ------- ")
             self.gaussian_sample(n_pts)
         elif sampling_method == "bridge":
+            print(" ------- Bridge Sampling ------- ")
             self.bridge_sample(n_pts)
+            
 
         ### YOUR CODE HERE ###
 
@@ -291,7 +296,6 @@ class PRM:
 
         kdtree = spatial.KDTree(self.samples)
         _, p_ids = list(kdtree.query([start, goal], K_NEIGHBORS))
-        print(len(p_ids[0]))
 
         for i in range(K_NEIGHBORS):
             p_start = p_ids[0][i]
@@ -313,6 +317,8 @@ class PRM:
         except nx.exception.NetworkXNoPath:
             print("No path found")
         
+        print(" -------------------------------- ")
+
         # Draw result
         self.draw_map()
 

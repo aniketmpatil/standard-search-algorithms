@@ -34,13 +34,13 @@ class RRT:
         self.goal = Node(goal[0], goal[1])    # goal node
         self.vertices = []                    # list of nodes
         self.found = False                    # found flag
-        self.goal.cost = math.inf
         
 
     def init_map(self):
         '''Intialize the map before each search
         '''
         self.found = False
+        self.goal.cost = math.inf
         self.vertices = []
         self.vertices.append(self.start)
 
@@ -116,7 +116,19 @@ class RRT:
 
 
     def extend(self, node1, node2):
-        if(self.dis(node1, node2) <= EXTEND_DIST):
+        '''Find the node to be added to the tree, returns either node2 or a new node
+        in the direction of node2 based on a distance comparison
+        arguments:
+            node1 - node 1
+            node2 - node 2
+
+        return:
+            node2 is distance is too short for extension
+            new_node from node1, in the direction of node2
+        '''
+        if(self.dis(node1, node2) <= EXTEND_DIST) and \
+            (node2.row != self.goal.row) and (node2.col != self.goal.col):
+            # Checks that the extend goal is not the goal node to avoid goal.parent being set as goal
             return node2
         else:
             dx = node2.row - node1.row
@@ -127,6 +139,7 @@ class RRT:
             x = node1.row + stepx
             y = node1.col + stepy
 
+            # Boundary check
             if(x < 0): x = 0
             elif(x > self.size_row): x = self.size_row - 1
             if(y < 0): y = 0
@@ -211,6 +224,7 @@ class RRT:
         '''
         # Remove previous result
         self.init_map()
+        print(" --------- RRT Algorithm ---------- ")
 
         ### YOUR CODE HERE ###
 
@@ -221,29 +235,51 @@ class RRT:
         # if added, check if reach the neighbor region of the goal.
         
         for n in range(n_pts):
+            # Sample new point and get its nearest neighbor in the tree
             new_point = self.get_new_point(GOAL_BIAS)
             near_vertex = self.get_nearest_node(new_point)
-            add_node = self.extend(near_vertex, new_point)
-            if(self.check_collision(near_vertex, add_node)):
-                add_node.parent = near_vertex
-                add_node.cost = near_vertex.cost + self.dis(add_node, near_vertex)
-                self.vertices.append(add_node)
-            if((self.dis(add_node, self.goal) <= GOAL_DIST) and \
-                self.check_collision(add_node, self.goal)):
+
+            # Extend in the direction of the random node if no collision
+            step_node = self.extend(near_vertex, new_point)
+            if(self.check_collision(near_vertex, step_node)):
+                step_node.parent = near_vertex
+                step_node.cost = near_vertex.cost + self.dis(step_node, near_vertex)
+                self.vertices.append(step_node)
+        
+            # Check if goal node is also within close range (GOAL_DIST) and add if no collision
+            # ========== First Method ========== 
+            # Stop exploring the tree once the goal node is reached
+
+            if((self.dis(step_node, self.goal) <= GOAL_DIST) and \
+                self.check_collision(step_node, self.goal)):
                 self.found = True
-                self.goal.parent = add_node
-                self.goal.cost = add_node.cost + self.dis(add_node, self.goal)
-                self.vertices.append(self.goal)
+                self.goal.parent = step_node
+                self.goal.cost = step_node.cost + self.dis(step_node, self.goal)
                 break
+
+            # ========== Second Method ========== 
+            # Check for neighbors of goal node and connect if there's a neighbor with lower cost than current goal cost
+            # This method keeps exploring the tree, even if goal is reached to find a better path to the goal node
+
+            # goal_neighbors = self.get_neighbors(self.goal, GOAL_DIST)
+            # for neighbor in goal_neighbors:
+            #     if(self.check_collision(neighbor, self.goal) and \
+            #         (neighbor.cost + self.dis(neighbor, self.goal)) < self.goal.cost):
+            #         self.goal.parent = neighbor
+            #         self.goal.cost = neighbor.cost + self.dis(neighbor, self.goal)
+            #         self.found = True
 
         # Output
         if self.found:
+            self.vertices.append(self.goal)
             steps = len(self.vertices) - 2
             length = self.goal.cost
             print("It took %d nodes to find the current path" %steps)
             print("The path length is %.2f" %length)
         else:
             print("No path found")
+        
+        print(" -------------------------------- ")
         
         # Draw result
         self.draw_map()
@@ -260,6 +296,7 @@ class RRT:
         '''
         # Remove previous result
         self.init_map()
+        print(" --------- RRT* Algorithm ---------- ")
 
         ### YOUR CODE HERE ###
 
@@ -271,50 +308,47 @@ class RRT:
         # and check if reach the neighbor region of the goal if the path is not found.
 
         for n in range(n_pts):
+            # Sample new point and get its nearest neighbor in the tree
             new_point = self.get_new_point(GOAL_BIAS)
             near_vertex = self.get_nearest_node(new_point)
-            new_node = self.extend(near_vertex, new_point)
-            if(new_node.row == self.goal.row and new_node.col == self.goal.col): continue
-            if(self.check_collision(near_vertex, new_node)):
-                neighbors = self.get_neighbors(new_node, RRTS_NEIGHBORS)
-                min_node = near_vertex
-                min_cost = near_vertex.cost + self.dis(near_vertex, new_node)
-                for neighbor in neighbors:
-                    if(self.check_collision(neighbor, new_node) and \
-                        (neighbor.cost + self.dis(neighbor, new_node)) < min_cost):
-                        min_node = neighbor
-                        min_cost = neighbor.cost + self.dis(neighbor, new_node)
-                new_node.parent = min_node
-                new_node.cost = min_cost
-                self.vertices.append(new_node)
-                self.rewire(new_node, neighbors)
 
-                # Check for goal_node
-                # if((self.dis(new_node, self.goal) <= GOAL_DIST) and \
-                #     self.check_collision(new_node, self.goal)):
-                #     self.found = True
-                #     self.goal.parent = new_node
-                #     self.goal.cost = self.dis(new_node, self.goal)
-                #     self.vertices.append(self.goal)
-                #     break
-                
-            goal_neighbors = self.get_neighbors(self.goal, GOAL_DIST)
+            # Find the node to extend in the direction of new node
+            step_node = self.extend(near_vertex, new_point)
+            if(self.check_collision(near_vertex, step_node)):
+                neighbors = self.get_neighbors(step_node, neighbor_size)
+                min_node = near_vertex
+                min_cost = near_vertex.cost + self.dis(near_vertex, step_node)
+                for neighbor in neighbors:
+                    if(self.check_collision(neighbor, step_node) and \
+                        (neighbor.cost + self.dis(neighbor, step_node)) < min_cost):
+                        min_node = neighbor
+                        min_cost = neighbor.cost + self.dis(neighbor, step_node)
+                step_node.parent = min_node
+                step_node.cost = min_cost
+                self.vertices.append(step_node)
+                self.rewire(step_node, neighbors)
+
+            # Check for neighbors of goal node and connect if there's a neighbor with lower cost than current goal cost
+            # This method keeps exploring the tree, even if goal is reached to find a better path to the goal node
+            goal_neighbors = self.get_neighbors(self.goal, neighbor_size)
             for neighbor in goal_neighbors:
                 if(self.check_collision(neighbor, self.goal) and \
                     (neighbor.cost + self.dis(neighbor, self.goal)) < self.goal.cost):
                     self.goal.parent = neighbor
                     self.goal.cost = neighbor.cost + self.dis(neighbor, self.goal)
                     self.found = True
-        self.vertices.append(self.goal)
 
         # Output
         if self.found:
+            self.vertices.append(self.goal)
             steps = len(self.vertices) - 2
             length = self.goal.cost
             print("It took %d nodes to find the current path" %steps)
             print("The path length is %.2f" %length)
         else:
             print("No path found")
+        
+        print(" -------------------------------- ")
 
         # Draw result
         self.draw_map()
